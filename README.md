@@ -16,11 +16,15 @@ Scripts used in Google Sheets and Google Ads
 
 Navigate to the automation project:
 
+```bash
 cd ~/dev/automation
+```
 
 Check current location:
 
+```bash
 pwd
+```
 
 ---
 
@@ -28,9 +32,11 @@ pwd
 
 Save and push changes to GitHub:
 
+```bash
 git add .
 git commit -m "update"
 git push
+```
 
 ---
 
@@ -38,4 +44,6 @@ git push
 
 Download the latest version:
 
+```bash
 git pull
+```
