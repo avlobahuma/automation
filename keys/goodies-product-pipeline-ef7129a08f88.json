@@ -1,0 +1,13 @@
+{
+  "type": "service_account",
+  "project_id": "goodies-product-pipeline",
+  "private_key_id": "ef7129a08f88a75d3ee328dfe00e14b41d15fced",
+  "private_key": "-----BEGIN PRIVATE KEY-----\nMIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDGWxHnG3hWSlO8\n4Z3wAf2XrUWw+bxTigsg9v4DpdHg+nrPruTO1mPzGhtb7NHzSRQ4jDruE0/vppPc\n5Vx6gC+PfTOSE5b6/bsCZRE4JeDK75FqVc9NzwlrSNku+prZAFq+M+hNw2YD5woI\nf3TuIILqBOEeCn58qDGX/Rf/zBUXPbaCY7Je2TCBlpLudIBdG1T5TzRXJay/QvVH\ndzvkublbqmSMDN+53ItN7gXel7YhVqNKZVLhiD6EP+XZHTYyXUBw+Y56QT4hpOXP\nLntfeQ8kxSW5jvXWU/0b+pgx+94c9459j+hEP9NdqW0/9TFLXJmmTwByJMgQxup8\nU4q1N52RAgMBAAECggEAF6bLSzHY1v003+xNH021dc0I5tHYdWOb8RnSbw/qJzfm\nxfXWPZ2NvHKL+ZmS7T31Bcseyb2OxgYoUmoc7VR0l1j3+b6RPatcjawMchP+KmSH\ng9Toi6AYwOymTPY/2YkzyMM6u28Frohxh1LfV/eTdKERULoym92YUEWzA2LLzwHs\nbnU8biKPtX4N408X2Yy1XSnyAp9Wvo/ZxrPpLmLUgKdI4EL4NmIlSqshs59AVf9X\nR3CLNdBX1xlT58yAwst1+4YUhJAG4HQoWxIRQnk65loPOmK2ZWRaTKGoTAU4ikj7\nflpaHLXeK4ibn0QEzWjJVvjFTLce+R+aJAbqICUrEwKBgQDxvsnfikHMlfjQfWu0\n7qJn0FsFpLcOdwnyWttu313flH2v0RNgCBqgb+klYlj+oEOUj1qBqu1YqCg+NEoT\niSyuqU4pLwBdU0fg5iG0u6BOUYjl81C9VgfGIYD9Uw0G6ZrMUE9syY2gS8d/UVZZ\nbRjXMqfQ/8ci7x8wmrfqh/kbQwKBgQDSDU30uXd4n2ikzG8t+/FetX+zLLZZjkJ3\nxqq11XKOh5yQDfGBnZk9m5XG5EqC+33HgIXj5BT0hYUFzqU4iNlFuqEPBE+fONS6\nowdcGrtOdWnEF56wRFK2FhOPpRQzc5Y54sL3C+dbGvbXYZoj1xIvpcFZ8+qSG0O8\nL8VCFtO0mwKBgQCXbnkMk5HGM0fKalZ232lSeJ0b+uNEp2LOswVz/W3TaTQWV3S4\nmjr7tz6n0WSIFCJhRC9gvI6zE5sp5B1nAW3A94NjnvKug0WqZt5EVagEh2SnDvTL\ntcFm5oPjrAukAd+bDs/CCLuz5uRQJ8ZcfE+sNioTbLX0dy/lhXWh740m+wKBgQCX\ny9eXUGS/PewAlGCQSa8fs2hKkrhgtcbhCigZ6du0ltoU3I64Da1NcV9m8VnLmHVI\nNGAN1akzID6GeNS7q2Hg20NDN+lWdlp9Wg2aiRLtWzqI5Ezgsy9WuVN/jluv5wsc\nX/xnTinuk+jos3cSCX3yAwZcvEG7PorPt3IFFbv+mwKBgAhlr355V7eTGjdinQTv\nuo0kiX38RgvkK/BM87TWp2kdegDMlu9IqgGaHYBs6Jy5LCHVL0CbituPrvCB4eo1\nXjS9OJRtWwJJK12MWDocAI03/kU2bdcnY7/VAwFzUFbsmxTpobY+P7W+qGfM2F7U\nwczieFxGT7u8vbOp66mdtsNf\n-----END PRIVATE KEY-----\n",
+  "client_email": "sheets-pipeline@goodies-product-pipeline.iam.gserviceaccount.com",
+  "client_id": "114415023947416256558",
+  "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+  "token_uri": "https://oauth2.googleapis.com/token",
+  "auth_provider_x509_cert_url": "https://www.googleapis.com/oauth2/v1/certs",
+  "client_x509_cert_url": "https://www.googleapis.com/robot/v1/metadata/x509/sheets-pipeline%40goodies-product-pipeline.iam.gserviceaccount.com",
+  "universe_domain": "googleapis.com"
+}
