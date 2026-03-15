@@ -1,1 +1,11 @@
-~/keys/goodies-product-pipeline-d210b257a429.json
+# macOS
+.DS_Store
+
+# python
+__pycache__/
+*.pyc
+
+# secrets
+keys/
+*.json
+.env
