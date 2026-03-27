@@ -6,6 +6,57 @@ function setChannelEngineApiKey() {
     PropertiesService.getScriptProperties().setProperty('CHANNELENGINE_API_KEY', apiKey);
 }
 
+/**
+ * Hulpfunctie om te zien welke velden ChannelEngine teruggeeft
+ * (order-level + line-level). Handig om te checken of EAN/GTIN aanwezig is.
+ *
+ * Run deze functie handmatig en bekijk de Execution logs.
+ */
+function debugLogAvailableOrderFields() {
+    const scriptProps = PropertiesService.getScriptProperties();
+    const apiKey = scriptProps.getProperty('CHANNELENGINE_API_KEY');
+    if (!apiKey) {
+        throw new Error('CHANNELENGINE_API_KEY is not set. Run setChannelEngineApiKey() once to store it in Script Properties.');
+    }
+
+    const fromDate = new Date();
+    fromDate.setDate(fromDate.getDate() - 30);
+    const startDate = fromDate.toISOString().split('T')[0];
+    const endDate = new Date();
+    endDate.setDate(endDate.getDate() - 1);
+    const formattedEndDate = endDate.toISOString().split('T')[0];
+
+    const url = `https://forelle.channelengine.net/api/v2/orders?apikey=${apiKey}&from=${startDate}&to=${formattedEndDate}&page=1`;
+    const response = UrlFetchApp.fetch(url);
+    const data = JSON.parse(response.getContentText());
+
+    const firstOrder = data && data.Content && data.Content.length ? data.Content[0] : null;
+    if (!firstOrder) {
+        Logger.log('Geen orders gevonden in deze periode (debug).');
+        return;
+    }
+
+    Logger.log(`Order keys (${Object.keys(firstOrder).length}): ${Object.keys(firstOrder).sort().join(', ')}`);
+
+    const firstLine = firstOrder.Lines && firstOrder.Lines.length ? firstOrder.Lines[0] : null;
+    if (firstLine) {
+        Logger.log(`Line keys (${Object.keys(firstLine).length}): ${Object.keys(firstLine).sort().join(', ')}`);
+    } else {
+        Logger.log('Eerste order heeft geen Lines (debug).');
+    }
+
+    // Extra: log mogelijke "barcode"-achtige velden als ze bestaan
+    const interesting = ['Gtin', 'GTIN', 'Ean', 'EAN', 'Barcode', 'ProductGtin', 'MerchantProductGtin', 'ProductEan', 'MerchantProductEan'];
+    interesting.forEach((k) => {
+        if (firstLine && Object.prototype.hasOwnProperty.call(firstLine, k)) {
+            Logger.log(`Line.${k} = ${firstLine[k]}`);
+        }
+        if (Object.prototype.hasOwnProperty.call(firstOrder, k)) {
+            Logger.log(`Order.${k} = ${firstOrder[k]}`);
+        }
+    });
+}
+
 function fetchAndUpdateOrders() {
     // Debug-instellingen (makkelijk aan/uit te zetten):
     const ENABLE_VERBOSE_LOG = true;      // Zet op false om extra logging uit te zetten
@@ -37,18 +88,16 @@ function fetchAndUpdateOrders() {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
     const sheet = ss.getSheetByName("Orders") || ss.insertSheet("Orders");
     const logSheet = ss.getSheetByName("log") || ss.insertSheet("log");
-    const masterSheet = ss.getSheetByName("Master");
     const portiSheet = ss.getSheetByName("Porti");
+    const dataSheet = ss.getSheetByName("data");
 
-    // Werk in tabblad Master voor alle regels de Fulfillment-kolom bij naar een vaste waarde van 3 euro
-    if (masterSheet) {
-        const lastRow = masterSheet.getLastRow();
-        if (lastRow >= 2) {
-            const numRows = lastRow - 1; // exclusief header
-            const fulfillmentValues = Array.from({ length: numRows }, () => [3]);
-            masterSheet.getRange(2, 4, numRows, 1).setValues(fulfillmentValues); // kolom D = Fulfillment
-        }
-    }
+    const normalizeGtin = (value) => {
+        if (value === null || value === undefined) return "";
+        const s = String(value).trim();
+        if (!s) return "";
+        const stripped = s.replace(/^0+/, "");
+        return stripped || "0";
+    };
 
     // Bouw een lookup-tabel voor verzendkosten op basis van CountryIso uit tabblad Porti
     // Verwacht structuur Porti:
@@ -66,6 +115,29 @@ function fetchAndUpdateOrders() {
         }
     }
 
+    // Lookup-tabel voor COGS op basis van EAN/GTIN uit tabblad data.
+    // Verwacht:
+    // - Kolom A = EAN
+    // - Kolom met header "cogs" = inkoopprijs
+    // - Kolom met header "Conversion benchmark product group" = productgroep (o.a. "Sportschoenen")
+    const cogsLookup = {};
+    let dataCogsColIdx = -1;
+    let dataProductGroupColIdx = -1;
+    if (dataSheet) {
+        const dataValues = dataSheet.getDataRange().getValues();
+        const dataHeaders = dataValues.length ? dataValues[0] : [];
+        dataCogsColIdx = dataHeaders.findIndex(h => String(h || "").trim().toLowerCase() === "cogs");
+        dataProductGroupColIdx = dataHeaders.findIndex(h => String(h || "").trim() === "Conversion benchmark product group");
+
+        for (let i = 1; i < dataValues.length; i++) {
+            const ean = normalizeGtin(dataValues[i][0]);
+            if (!ean) continue;
+            const baseCogs = dataCogsColIdx >= 0 ? dataValues[i][dataCogsColIdx] : "";
+            const productGroup = dataProductGroupColIdx >= 0 ? dataValues[i][dataProductGroupColIdx] : "";
+            cogsLookup[ean] = { baseCogs, productGroup };
+        }
+    }
+
     // Maak het log-tabblad leeg en zet vaste labels
     logSheet.clear();
     logSheet.getRange('A1').setValue('Date');
@@ -77,7 +149,7 @@ function fetchAndUpdateOrders() {
         "Id", "OrderDate", "ChannelName", "Status", 
         "CountryIso", "Description", "Quantity", "UnitPriceExclVat", 
         "TotalUnitPriceExclVat", "MerchantProductNo", "OriginalSubTotalFee", 
-        "IsBusinessOrder", "Verzendkosten"
+        "IsBusinessOrder", "Gtin", "Cogs", "Fulfillment", "Verzendkosten"
     ];
 
     // Controleer en stel headers in op rij 1
@@ -88,35 +160,29 @@ function fetchAndUpdateOrders() {
         sheet.appendRow(headers); // Stel nieuwe headers in
     }
 
-    // We bouwen het Orders-tabblad elke run volledig opnieuw op
-    // (alle rijen onder de header worden eerst leeggemaakt).
-    const lastRowOrders = sheet.getLastRow();
-    if (lastRowOrders > 1) {
-        sheet.getRange(2, 1, lastRowOrders - 1, headers.length).clearContent();
-    }
-
     let page = 1;
     let totalPages = 1;      // Placeholder
     const allRows = [];      // Alle rijen die we gaan wegschrijven
 
-    do {
-        const url = `${baseUrl}&page=${page}`;
-        if (ENABLE_VERBOSE_LOG) {
-            Logger.log(`Ophalen pagina ${page}... URL=${url}`);
-        }
+    try {
+        do {
+            const url = `${baseUrl}&page=${page}`;
+            if (ENABLE_VERBOSE_LOG) {
+                Logger.log(`Ophalen pagina ${page}... URL=${url}`);
+            }
 
-        const response = UrlFetchApp.fetch(url);
-        const data = JSON.parse(response.getContentText());
+            const response = UrlFetchApp.fetch(url);
+            const data = JSON.parse(response.getContentText());
 
-        totalPages = Math.ceil(data.TotalCount / 100); // Bereken het totaal aantal pagina's
+            totalPages = Math.ceil(data.TotalCount / 100); // Bereken het totaal aantal pagina's
 
-        if (ENABLE_VERBOSE_LOG) {
-            Logger.log(`Pagina ${page}: ${data.Content.length} orders, TotalCount=${data.TotalCount}, berekende totalPages=${totalPages}`);
-        }
+            if (ENABLE_VERBOSE_LOG) {
+                Logger.log(`Pagina ${page}: ${data.Content.length} orders, TotalCount=${data.TotalCount}, berekende totalPages=${totalPages}`);
+            }
 
-        for (let i = 0; i < data.Content.length; i++) {
-            const order = data.Content[i];
-            order.Lines.forEach(line => {
+            for (let i = 0; i < data.Content.length; i++) {
+                const order = data.Content[i];
+                order.Lines.forEach(line => {
                 // Berekening voor TotalUnitPriceExclVat
                 const totalUnitPriceExclVat = line.Quantity * line.UnitPriceExclVat;
 
@@ -133,6 +199,15 @@ function fetchAndUpdateOrders() {
                 // Verzendkosten lookup op basis van CountryIso (vergelijkbaar met VLOOKUP op tabblad Porti)
                 const countryIso = order.ShippingAddress.CountryIso;
                 const verzendkosten = shippingLookup[countryIso] !== undefined ? shippingLookup[countryIso] : "";
+                const fulfillment = 3;
+
+                const gtin = normalizeGtin(line.Gtin);
+                const cogsRow = gtin ? cogsLookup[gtin] : undefined;
+                const baseCogs = cogsRow ? cogsRow.baseCogs : "";
+                const productGroup = cogsRow ? String(cogsRow.productGroup || "").trim() : "";
+                const multiplier = productGroup === "Sportschoenen" ? 1.20 : 1.15;
+                const baseCogsNumber = baseCogs === "" || baseCogs === null || baseCogs === undefined ? NaN : Number(String(baseCogs).toString().replace(",", "."));
+                const cogs = isNaN(baseCogsNumber) ? "" : (baseCogsNumber * multiplier);
 
                 const row = [
                     order.Id,                                // Order ID
@@ -147,19 +222,33 @@ function fetchAndUpdateOrders() {
                     line.MerchantProductNo,                 // Merchant Productnummer
                     originalSubTotalFee,                    // Original SubTotal Fee (mogelijk negatief)
                     order.IsBusinessOrder,                  // IsBusinessOrder
+                    gtin,                                   // Gtin (zonder voorloopnullen)
+                    cogs,                                   // Cogs (inkoopprijs * factor)
+                    fulfillment,                            // Fulfillment (vaste waarde per orderregel)
                     verzendkosten                           // Verzendkosten (op basis van Porti)
                 ];
 
                 allRows.push(row);
-            });
-        }
+                });
+            }
 
-        page++; // Volgende pagina
-    } while (page <= totalPages);
+            page++; // Volgende pagina
+        } while (page <= totalPages);
+    } catch (e) {
+        Logger.log(`FOUT tijdens ophalen orders. Orders-tabblad blijft ongewijzigd. Error: ${e && e.stack ? e.stack : e}`);
+        throw e;
+    }
 
-    // Schrijf alle opgehaalde orderregels in één keer weg (vanaf rij 2)
+    // Pas overschrijven als we daadwerkelijk resultaten hebben opgehaald.
+    // Zo voorkom je dat een mislukte run het Orders-tabblad leeg achterlaat.
     if (allRows.length > 0) {
+        const lastRowOrders = sheet.getLastRow();
+        if (lastRowOrders > 1) {
+            sheet.getRange(2, 1, lastRowOrders - 1, headers.length).clearContent();
+        }
         sheet.getRange(2, 1, allRows.length, headers.length).setValues(allRows);
+    } else if (ENABLE_VERBOSE_LOG) {
+        Logger.log('Geen orderregels opgehaald (allRows=0). Orders-tabblad is niet overschreven.');
     }
 
     // Sorteer op order-ID (kolom A) aflopend
