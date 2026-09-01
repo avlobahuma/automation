@@ -1,0 +1,15 @@
+{
+  "name": "spreadsheet-email-digest",
+  "private": true,
+  "scripts": {
+    "login": "clasp login",
+    "create": "clasp create-script --title \"Spreadsheet email digest\" --type sheets --parentId 1wYOlZmos_U6PQk-TDbzBdGTxU7cyFn9D06WCu9qshbs",
+    "push": "clasp push --force",
+    "pull": "clasp pull",
+    "open": "clasp open-script",
+    "status": "clasp show-file-status"
+  },
+  "devDependencies": {
+    "@google/clasp": "^3.4.1"
+  }
+}

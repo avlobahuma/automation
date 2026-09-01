@@ -10,6 +10,9 @@ Local Python scripts (image processing, scraping, data tools)
 google_app_scripts  
 Scripts used in Google Sheets and Google Ads
 
+google_app_scripts/spreadsheet_email  
+Apps Script that emails spreadsheet contents. Upload with clasp (`npm run push` in that folder). See `google_app_scripts/spreadsheet_email/README.md`.
+
 ---
 
 ## Open project folder in Terminal

@@ -6,7 +6,15 @@
 __pycache__/
 *.pyc
 
+# node
+node_modules/
+
 # secrets
 keys/
-*.json
 .env
+.clasprc.json
+.clasp.json
+client_secret*.json
+credentials.json
+token.json
+service-account*.json
