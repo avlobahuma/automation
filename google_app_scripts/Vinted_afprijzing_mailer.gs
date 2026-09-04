@@ -1,6 +1,6 @@
 const SPREADSHEET_ID = '1wYOlZmos_U6PQk-TDbzBdGTxU7cyFn9D06WCu9qshbs';
 const SHEET_GID = 0;
-const RECIPIENT_EMAIL = '';
+const RECIPIENT_EMAIL = 'kristiaan@krstn.nl';
 const EMAIL_SUBJECT = 'Spreadsheet overzicht';
 const MAX_ROWS = 200;
 const TRIGGER_HOUR = 8;
@@ -33,18 +33,21 @@ function send_spreadsheet_email() {
   const truncated = filtered_rows.length > MAX_ROWS;
   const rows_for_email = truncated ? filtered_rows.slice(0, MAX_ROWS) : filtered_rows;
   const recipient = get_recipient_email_();
+  const subject = EMAIL_SUBJECT + ' — ' + spreadsheet.getName();
+  const html_body = build_email_html_(spreadsheet, sheet, headers, rows_for_email, filtered_rows.length, truncated);
+  const text_body = build_email_text_(spreadsheet, sheet, headers, rows_for_email, filtered_rows.length, truncated);
 
   Logger.log('Sending email to: ' + recipient);
   Logger.log('Including ' + rows_for_email.length + ' of ' + filtered_rows.length + ' rows');
+  Logger.log('Remaining MailApp quota: ' + MailApp.getRemainingDailyQuota());
 
-  MailApp.sendEmail({
-    to: recipient,
-    subject: EMAIL_SUBJECT + ' — ' + spreadsheet.getName(),
-    htmlBody: build_email_html_(spreadsheet, sheet, headers, rows_for_email, filtered_rows.length, truncated)
+  GmailApp.sendEmail(recipient, subject, text_body, {
+    htmlBody: html_body,
+    name: 'Vinted afprijzing mailer'
   });
 
   const duration = ((new Date()) - started) / 1000;
-  Logger.log('Finished sending spreadsheet email');
+  Logger.log('Finished sending spreadsheet email to ' + recipient);
   Logger.log('Total execution time: ' + duration.toFixed(2) + ' seconds');
 }
 
@@ -68,14 +71,10 @@ function setup_daily_trigger() {
 
 function get_recipient_email_() {
   const configured = String(RECIPIENT_EMAIL || '').trim();
-  if (configured) {
-    return configured;
+  if (!configured) {
+    throw new Error('RECIPIENT_EMAIL is empty. Set it at the top of the script.');
   }
-  const email = Session.getEffectiveUser().getEmail();
-  if (!email) {
-    throw new Error('No recipient email. Set RECIPIENT_EMAIL at the top of the script.');
-  }
-  return email;
+  return configured;
 }
 
 function get_sheet_by_gid_(spreadsheet, gid) {
@@ -103,6 +102,28 @@ function apply_filter_(headers, rows) {
   const expected = String(FILTER_VALUE || '').trim().toLowerCase();
   Logger.log('Filtering column "' + header + '" equals "' + FILTER_VALUE + '"');
   return rows.filter(row => String(row[column_index] || '').trim().toLowerCase() === expected);
+}
+
+function build_email_text_(spreadsheet, sheet, headers, rows, total_rows, truncated) {
+  const summary = truncated
+    ? 'Showing first ' + rows.length + ' of ' + total_rows + ' rows.'
+    : 'Showing all ' + total_rows + ' rows.';
+  const lines = [
+    spreadsheet.getName(),
+    sheet.getName(),
+    spreadsheet.getUrl() + '#gid=' + sheet.getSheetId(),
+    summary,
+    ''
+  ];
+  if (!rows.length) {
+    lines.push('No rows matched the current settings.');
+    return lines.join('\n');
+  }
+  lines.push(headers.join('\t'));
+  for (let r = 0; r < rows.length; r++) {
+    lines.push(rows[r].join('\t'));
+  }
+  return lines.join('\n');
 }
 
 function build_email_html_(spreadsheet, sheet, headers, rows, total_rows, truncated) {
