@@ -1,5 +1,6 @@
 # pip install pillow pillow-heif
 
+import shutil
 import sys
 import tempfile
 import time
